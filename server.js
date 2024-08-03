@@ -1,10 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const cors = require('cors'); // Agrega el paquete CORS
 
 const app = express();
 const port = 7000;
 
+// Configura CORS para permitir solicitudes de cualquier origen
+app.use(cors());
+
+// Conectar a MongoDB
 mongoose.connect('mongodb+srv://data_user:wY1v50t8fX4lMA85@cluster0.entyyeb.mongodb.net/configuration', {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -135,8 +140,6 @@ app.post('/api/banners', async (req, res) => {
     }
 });
 
-
-
 // Endpoint para actualizar un banner
 app.put('/api/banners/:bannerId', async (req, res) => {
     try {
@@ -181,7 +184,6 @@ app.put('/api/banners/:bannerId', async (req, res) => {
     }
 });
 
-
 // Endpoint para eliminar un banner
 app.delete('/api/banners/:bannerId', async (req, res) => {
     try {
@@ -214,8 +216,6 @@ app.delete('/api/banners/:bannerId', async (req, res) => {
     }
 });
 
-
-
 // Endpoint para obtener solo los banners
 app.get('/api/banners', async (req, res) => {
     try {
@@ -237,7 +237,6 @@ app.get('/api/banners', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
-
 
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
