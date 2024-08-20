@@ -238,6 +238,35 @@ app.get('/api/banners', async (req, res) => {
     }
 });
 
+// Endpoint para obtener los detalles de un banner por ID
+app.get('/api/banners/:bannerId', async (req, res) => {
+    try {
+        const domain = req.headers['domain'];
+        if (!domain) {
+            return res.status(400).json({ message: 'Domain header is required' });
+        }
+
+        const collectionName = getCollectionName(domain);
+        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
+
+        const config = await ConfigModel.findOne({});
+        if (!config) {
+            return res.status(404).json({ message: 'Configuration not found' });
+        }
+
+        // Busca el banner por ID (ajustar si el campo es diferente a `_id`)
+        const banner = config.banner.find(banner => banner._id.toString() === req.params.bannerId);
+        if (!banner) {
+            return res.status(404).json({ message: 'Banner not found' });
+        }
+
+        res.json(banner);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
