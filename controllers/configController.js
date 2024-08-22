@@ -196,7 +196,7 @@ exports.getConfigByDomain = async (req, res) => {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
 
-        res.status(200).json(config);
+        res.status(200).json([config]);
     } catch (err) {
         res.status(500).json({ status: false, message: err.message });
     }
