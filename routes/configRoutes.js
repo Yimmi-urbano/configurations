@@ -14,6 +14,7 @@ router.get('/banners/:bannerId', checkDomainHeader, configController.getBannerBy
 router.put('/config/logo', checkDomainHeader, configController.updateLogo);
 router.put('/config/metadata', checkDomainHeader, configController.updateMetadata);
 
+router.get('/config', checkDomainHeader, configController.getConfigByDomain);
 
 
 module.exports = router;

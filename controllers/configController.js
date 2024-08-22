@@ -125,6 +125,7 @@ exports.getBannerById = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
 exports.updateLogo = async (req, res) => {
     try {
         const domain = req.headers['domain'];
@@ -174,6 +175,28 @@ exports.updateMetadata = async (req, res) => {
         }
 
         res.status(200).json({ status: true, message: 'Metadata updated successfully' });
+    } catch (err) {
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
+exports.getConfigByDomain = async (req, res) => {
+    try {
+        const domain = req.headers['domain'];
+
+        if (!domain) {
+            return res.status(400).json({ status: false, message: 'Domain header is required' });
+        }
+
+        const collectionName = getCollectionName(domain);
+        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
+
+        const config = await ConfigModel.findOne({});
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        res.status(200).json(config);
     } catch (err) {
         res.status(500).json({ status: false, message: err.message });
     }
