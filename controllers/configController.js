@@ -201,3 +201,30 @@ exports.getConfigByDomain = async (req, res) => {
         res.status(500).json({ status: false, message: err.message });
     }
 };
+
+// Controlador para actualizar colores
+exports.updateColors = async (req, res) => {
+    try {
+        const domain = req.headers['domain'];
+        const { colors } = req.body;
+
+        if (!colors || !Array.isArray(colors)) {
+            return res.status(400).json({ status: false, message: 'Colors field is required and should be an array' });
+        }
+
+        const collectionName = getCollectionName(domain);
+        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
+
+        const config = await ConfigModel.findOne({});
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        config.colors = colors;  // Actualiza el campo 'colors'
+        await config.save();
+
+        res.status(200).json({ status: true, message: 'Colors updated successfully' });
+    } catch (err) {
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
