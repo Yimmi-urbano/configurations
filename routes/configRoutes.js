@@ -16,6 +16,6 @@ router.put('/config/metadata', checkDomainHeader, configController.updateMetadat
 router.put('/config/colors', checkDomainHeader, configController.updateColors);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
-
+router.post('/configurations/create', checkDomainHeader, configController.createConfig);
 
 module.exports = router;

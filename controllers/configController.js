@@ -202,7 +202,6 @@ exports.getConfigByDomain = async (req, res) => {
     }
 };
 
-// Controlador para actualizar colores
 exports.updateColors = async (req, res) => {
     try {
         const domain = req.headers['domain'];
@@ -224,6 +223,34 @@ exports.updateColors = async (req, res) => {
         await config.save();
 
         res.status(200).json({ status: true, message: 'Colors updated successfully' });
+    } catch (err) {
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
+exports.createConfig = async (req, res) => {
+    try {
+        const domain = req.headers['domain'];
+
+        if (!domain) {
+            return res.status(400).json({ status: false, message: 'Domain header is required' });
+        }
+
+        const collectionName = getCollectionName(domain);
+        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
+
+        // Verificar si ya existe una configuración
+        const existingConfig = await ConfigModel.findOne({});
+
+        if (existingConfig) {
+            return res.status(400).json({ status: false, message: 'Configuration already exists' });
+        }
+
+        // Si no existe, crear una nueva configuración
+        const newConfig = new ConfigModel(req.body);
+        await newConfig.save();
+        return res.status(201).json({ status: true, message: 'Configuration created successfully', config: newConfig });
+
     } catch (err) {
         res.status(500).json({ status: false, message: err.message });
     }
