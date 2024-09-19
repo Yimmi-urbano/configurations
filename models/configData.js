@@ -4,6 +4,7 @@ const ConfigDataSchema = new mongoose.Schema({
     title: String,
     slogan: String,
     logo: String,
+    theme: String,
     colors: [String],
     catalogo: {
         button: {
