@@ -2,22 +2,17 @@ const mongoose = require('mongoose');
 const ConfigDataSchema = require('../models/configData');
 const getCollectionName = require('../utils/getCollectionName');
 
+const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
+
 exports.addBanner = async (req, res) => {
     try {
         const { image, text, button } = req.body;
 
-        if (!image || !text || !Array.isArray(button)) {
+        if (!image || !text || !Array.isArray(button) || button.length === 0) {
             return res.status(400).json({ status: false, message: 'Required fields are missing or invalid' });
         }
 
-        if (button.length === 0) {
-            return res.status(400).json({ status: false, message: 'At least one button is required' });
-        }
-
-        const collectionName = getCollectionName(req.domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -35,18 +30,11 @@ exports.updateBanner = async (req, res) => {
     try {
         const { image, text, button } = req.body;
 
-        if (!image || !text || !Array.isArray(button)) {
+        if (!image || !text || !Array.isArray(button) || button.length === 0) {
             return res.status(400).json({ status: false, message: 'Required fields are missing or invalid' });
         }
 
-        if (button.length === 0) {
-            return res.status(400).json({ status: false, message: 'At least one button is required' });
-        }
-
-        const collectionName = getCollectionName(req.domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -67,10 +55,7 @@ exports.updateBanner = async (req, res) => {
 
 exports.deleteBanner = async (req, res) => {
     try {
-        const collectionName = getCollectionName(req.domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -91,10 +76,7 @@ exports.deleteBanner = async (req, res) => {
 
 exports.getBanners = async (req, res) => {
     try {
-        const collectionName = getCollectionName(req.domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({}, 'banner');
+        const config = await ConfigModel.findOne({ domain: req.domain }, 'banner');
         if (!config) {
             return res.status(404).json({ message: 'Configuration not found' });
         }
@@ -107,10 +89,7 @@ exports.getBanners = async (req, res) => {
 
 exports.getBannerById = async (req, res) => {
     try {
-        const collectionName = getCollectionName(req.domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ message: 'Configuration not found' });
         }
@@ -128,18 +107,13 @@ exports.getBannerById = async (req, res) => {
 
 exports.updateLogo = async (req, res) => {
     try {
-        const domain = req.headers['domain'];
         const { logo } = req.body;
 
         if (!logo) {
             return res.status(400).json({ status: false, message: 'Logo field is required' });
         }
 
-        const collectionName = getCollectionName(domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOneAndUpdate({}, { logo }, { new: true, upsert: true });
-
+        const config = await ConfigModel.findOneAndUpdate({ domain: req.domain }, { logo }, { new: true, upsert: true });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -152,10 +126,9 @@ exports.updateLogo = async (req, res) => {
 
 exports.updateMetadata = async (req, res) => {
     try {
-        const domain = req.headers['domain'];
         const { meta_description, meta_keyword, title, slogan } = req.body;
-
         const updateFields = {};
+
         if (meta_description) updateFields.meta_description = meta_description;
         if (meta_keyword) updateFields.meta_keyword = meta_keyword;
         if (title) updateFields.title = title;
@@ -165,11 +138,7 @@ exports.updateMetadata = async (req, res) => {
             return res.status(400).json({ status: false, message: 'No fields provided for update' });
         }
 
-        const collectionName = getCollectionName(domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOneAndUpdate({}, updateFields, { new: true, upsert: true });
-
+        const config = await ConfigModel.findOneAndUpdate({ domain: req.domain }, updateFields, { new: true, upsert: true });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -182,16 +151,7 @@ exports.updateMetadata = async (req, res) => {
 
 exports.getConfigByDomain = async (req, res) => {
     try {
-        const domain = req.headers['domain'];
-
-        if (!domain) {
-            return res.status(400).json({ status: false, message: 'Domain header is required' });
-        }
-
-        const collectionName = getCollectionName(domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
@@ -204,22 +164,18 @@ exports.getConfigByDomain = async (req, res) => {
 
 exports.updateColors = async (req, res) => {
     try {
-        const domain = req.headers['domain'];
         const { colors } = req.body;
 
         if (!colors || !Array.isArray(colors)) {
             return res.status(400).json({ status: false, message: 'Colors field is required and should be an array' });
         }
 
-        const collectionName = getCollectionName(domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        const config = await ConfigModel.findOne({});
+        const config = await ConfigModel.findOne({ domain: req.domain });
         if (!config) {
             return res.status(404).json({ status: false, message: 'Configuration not found' });
         }
 
-        config.colors = colors;  // Actualiza el campo 'colors'
+        config.colors = colors; // Actualiza el campo 'colors'
         await config.save();
 
         res.status(200).json({ status: true, message: 'Colors updated successfully' });
@@ -236,18 +192,13 @@ exports.createConfig = async (req, res) => {
             return res.status(400).json({ status: false, message: 'Domain header is required' });
         }
 
-        const collectionName = getCollectionName(domain);
-        const ConfigModel = mongoose.model('Config', ConfigDataSchema, collectionName);
-
-        // Verificar si ya existe una configuración
-        const existingConfig = await ConfigModel.findOne({});
+        const existingConfig = await ConfigModel.findOne({ domain: domain });
 
         if (existingConfig) {
             return res.status(400).json({ status: false, message: 'Configuration already exists' });
         }
 
-        // Si no existe, crear una nueva configuración
-        const newConfig = new ConfigModel(req.body);
+        const newConfig = new ConfigModel({ ...req.body, domain: domain }); // Incluir domain
         await newConfig.save();
         return res.status(201).json({ status: true, message: 'Configuration created successfully', config: newConfig });
 
