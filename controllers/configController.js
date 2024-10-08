@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const ConfigDataSchema = require('../models/configData');
-const getCollectionName = require('../utils/getCollectionName');
+//const getCollectionName = require('../utils/getCollectionName');
 
 const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
 
@@ -183,6 +183,34 @@ exports.updateColors = async (req, res) => {
         res.status(500).json({ status: false, message: err.message });
     }
 };
+
+exports.updateCatalogo = async (req, res) => {
+    try {
+        const { catalogo } = req.body;
+
+        // Validación para asegurar que el campo catalogo esté presente y sea un objeto
+        if (!catalogo || typeof catalogo !== 'object') {
+            return res.status(400).json({ status: false, message: "El campo 'catalogo' es requerido y debe ser un objeto." });
+        }
+
+        // Buscar la configuración basada en el dominio desde req.domain
+        const config = await ConfigModel.findOne({ domain: req.domain });
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuración no encontrada' });
+        }
+
+        // Actualizar el campo catalogo
+        config.catalogo = catalogo;
+        await config.save(); // Guardar los cambios
+
+        // Respuesta exitosa
+        res.status(200).json({ status: true, message: 'Catálogo actualizado correctamente' });
+    } catch (err) {
+        // Manejo de errores
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
 
 exports.createConfig = async (req, res) => {
     try {
