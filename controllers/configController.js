@@ -234,3 +234,110 @@ exports.createConfig = async (req, res) => {
         res.status(500).json({ status: false, message: err.message });
     }
 };
+
+// get un enlace social
+exports.getSocialLink = async (req, res) => {
+    const domain = req.headers.domain; // Obtener el domain de los headers
+ 
+
+    if (!domain) return res.status(400).json({ message: 'Domain no proporcionado en los headers' });
+
+    try {
+        // Encuentra la configuración según el dominio
+        const config = await ConfigModel.findOne({ domain });
+        if (!config) return res.status(404).json({ message: 'Configuración no encontrada' });
+
+        // Retornar solo la lista de social_links actualizada
+        res.status(200).json(config.social_links); // Aquí se retorna directamente el array
+    } catch (error) {
+        res.status(500).json({ message: 'Error al agregar enlace social', error });
+    }
+};
+
+// Agregar un enlace social
+exports.addSocialLink = async (req, res) => {
+    const domain = req.headers.domain; // Obtener el domain de los headers
+    const { title, icon, url, is_active } = req.body;
+
+    if (!domain) return res.status(400).json({ message: 'Domain no proporcionado en los headers' });
+
+    try {
+        // Encuentra la configuración según el dominio
+        const config = await ConfigModel.findOne({ domain });
+        if (!config) return res.status(404).json({ message: 'Configuración no encontrada' });
+
+        // Agregar nuevo enlace social
+        config.social_links.push({ title, icon, url, is_active });
+        await config.save();
+
+        // Retornar solo la lista de social_links actualizada
+        res.status(200).json(config.social_links); // Aquí se retorna directamente el array
+    } catch (error) {
+        res.status(500).json({ message: 'Error al agregar enlace social', error });
+    }
+};
+
+
+
+// Editar un enlace social existente
+exports.editSocialLink = async (req, res) => {
+    try {
+        const domain = req.headers.domain; // Obtener el dominio de los headers
+        const { linkId } = req.params; // Obtener el ID del enlace social desde los parámetros de la URL
+        const { title, icon, url, is_active } = req.body; // Datos actualizados del enlace social
+
+        if (!domain) return res.status(400).json({ status: false, message: 'Domain no proporcionado en los headers' });
+
+        // Encuentra la configuración según el dominio
+        const config = await ConfigModel.findOne({ domain });
+        if (!config) return res.status(404).json({ status: false, message: 'Configuración no encontrada' });
+
+        // Encuentra el índice del enlace social por ID
+        const socialLinkIndex = config.social_links.findIndex(link => link._id.toString() === linkId);
+        if (socialLinkIndex === -1) return res.status(404).json({ status: false, message: 'Enlace social no encontrado' });
+
+        // Actualizar los campos del enlace social
+        if (title) config.social_links[socialLinkIndex].title = title;
+        if (icon) config.social_links[socialLinkIndex].icon = icon;
+        if (url) config.social_links[socialLinkIndex].url = url;
+        if (is_active !== undefined) config.social_links[socialLinkIndex].is_active = is_active;
+
+        // Guarda los cambios en la configuración
+        await config.save();
+
+        // Retorna la lista actualizada de enlaces sociales
+        res.status(200).json(config.social_links); // Aquí se retorna directamente el array
+    } catch (error) {
+        // Manejar errores
+        res.status(500).json({ status: false, message: 'Error al actualizar el enlace social', error: error.message });
+    }
+};
+
+
+exports.deleteSocialLink = async (req, res) => {
+    try {
+        // Encuentra la configuración según el dominio en el header
+        const config = await ConfigModel.findOne({ domain: req.headers.domain });
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuración no encontrada' });
+        }
+
+        // Encuentra el índice del enlace social según el ID proporcionado en la URL
+        const socialLinkIndex = config.social_links.findIndex(link => link._id.toString() === req.params.linkId);
+        if (socialLinkIndex === -1) {
+            return res.status(404).json({ status: false, message: 'Enlace social no encontrado' });
+        }
+
+        // Elimina el enlace social de la lista
+        config.social_links.splice(socialLinkIndex, 1);
+
+        // Guarda los cambios en la configuración
+        await config.save();
+
+        // Retorna una respuesta exitosa con la lista actualizada de enlaces sociales
+        res.status(200).json(config.social_links);
+    } catch (err) {
+        // En caso de error, retorna un mensaje de error
+        res.status(500).json({ status: false, message: err.message });
+    }
+};

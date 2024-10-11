@@ -20,4 +20,9 @@ router.put('/config/catalogo', checkDomainHeader, configController.updateCatalog
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
 router.post('/configurations/create', checkDomainHeader, configController.createConfig);
 
+router.get('/social-link', checkDomainHeader,  configController.getSocialLink);
+router.post('/social-link/new', checkDomainHeader,  configController.addSocialLink);
+router.put('/social-link/:linkId', checkDomainHeader,  configController.editSocialLink);
+router.delete('/social-link/:linkId', checkDomainHeader,  configController.deleteSocialLink);
+
 module.exports = router;
