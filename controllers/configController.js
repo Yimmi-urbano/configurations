@@ -343,8 +343,8 @@ exports.updateTheme = async (req, res) => {
     try {
         const { theme } = req.body;
 
-        if (!logo) {
-            return res.status(400).json({ status: false, message: 'Logo field is required' });
+        if (!theme) {
+            return res.status(400).json({ status: false, message: 'Theme field is required' });
         }
 
         const config = await ConfigModel.findOneAndUpdate({ domain: req.domain }, { theme }, { new: true, upsert: true });
