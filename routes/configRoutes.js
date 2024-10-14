@@ -14,7 +14,7 @@ router.get('/banners/:bannerId', checkDomainHeader, configController.getBannerBy
 router.put('/config/logo', checkDomainHeader, configController.updateLogo);
 router.put('/config/metadata', checkDomainHeader, configController.updateMetadata);
 router.put('/config/colors', checkDomainHeader, configController.updateColors);
-
+router.put('/config/theme', checkDomainHeader, configController.updateTheme);
 router.put('/config/catalogo', checkDomainHeader, configController.updateCatalogo);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);

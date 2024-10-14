@@ -277,8 +277,6 @@ exports.addSocialLink = async (req, res) => {
     }
 };
 
-
-
 // Editar un enlace social existente
 exports.editSocialLink = async (req, res) => {
     try {
@@ -313,7 +311,6 @@ exports.editSocialLink = async (req, res) => {
     }
 };
 
-
 exports.deleteSocialLink = async (req, res) => {
     try {
         // Encuentra la configuración según el dominio en el header
@@ -338,6 +335,25 @@ exports.deleteSocialLink = async (req, res) => {
         res.status(200).json(config.social_links);
     } catch (err) {
         // En caso de error, retorna un mensaje de error
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
+exports.updateTheme = async (req, res) => {
+    try {
+        const { theme } = req.body;
+
+        if (!logo) {
+            return res.status(400).json({ status: false, message: 'Logo field is required' });
+        }
+
+        const config = await ConfigModel.findOneAndUpdate({ domain: req.domain }, { theme }, { new: true, upsert: true });
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        res.status(200).json({ status: true, message: 'Theme updated successfully' });
+    } catch (err) {
         res.status(500).json({ status: false, message: err.message });
     }
 };
