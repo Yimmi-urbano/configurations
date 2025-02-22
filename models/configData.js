@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const ConfigDataSchema = new mongoose.Schema({
     domain: { type: String, required: true, unique: true },
     title: String,
+    owner_company:String,
     slogan: String,
     logo: String,
     theme: String,

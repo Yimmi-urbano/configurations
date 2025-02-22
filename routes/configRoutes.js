@@ -18,6 +18,8 @@ router.put('/config/theme', checkDomainHeader, configController.updateTheme);
 router.put('/config/catalogo', checkDomainHeader, configController.updateCatalogo);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
+router.get('/list/owner',  configController.getConfigByOwner);
+
 router.post('/configurations/create', checkDomainHeader, configController.createConfig);
 
 router.get('/social-link', checkDomainHeader,  configController.getSocialLink);

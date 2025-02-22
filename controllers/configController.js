@@ -162,6 +162,41 @@ exports.getConfigByDomain = async (req, res) => {
     }
 };
 
+exports.getConfigByOwner = async (req, res) => {
+    try {
+        const ownerCompany = req.headers['company'];
+        if (!ownerCompany) {
+            return res.status(400).json({ status: false, message: 'Company header is required' });
+        }
+
+        const page = parseInt(req.query.page) || 1; 
+        const limit = parseInt(req.query.limit) || 30;
+        const skip = (page - 1) * limit;
+
+        const configs = await ConfigModel.find({ owner_company: ownerCompany })
+            .skip(skip)
+            .limit(limit);
+
+        const totalConfigs = await ConfigModel.countDocuments({ owner_company: ownerCompany });
+        const totalPages = Math.ceil(totalConfigs / limit);
+
+        if (!configs.length) {
+            return res.status(404).json({ status: false, message: 'Configurations not found' });
+        }
+
+        res.status(200).json({
+            status: true,
+            currect_page: page,
+            total_page:totalPages,
+            total:totalConfigs,
+            data: configs
+        });
+    } catch (err) {
+        console.error('Error en la API:', err);
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
 exports.updateColors = async (req, res) => {
     try {
         const { colors } = req.body;
@@ -211,7 +246,6 @@ exports.updateCatalogo = async (req, res) => {
     }
 };
 
-
 exports.createConfig = async (req, res) => {
     try {
         const domain = req.headers['domain'];
@@ -235,7 +269,6 @@ exports.createConfig = async (req, res) => {
     }
 };
 
-// get un enlace social
 exports.getSocialLink = async (req, res) => {
     const domain = req.headers.domain; // Obtener el domain de los headers
  
@@ -254,7 +287,6 @@ exports.getSocialLink = async (req, res) => {
     }
 };
 
-// Agregar un enlace social
 exports.addSocialLink = async (req, res) => {
     const domain = req.headers.domain; // Obtener el domain de los headers
     const { title, icon, url, is_active } = req.body;
@@ -277,7 +309,6 @@ exports.addSocialLink = async (req, res) => {
     }
 };
 
-// Editar un enlace social existente
 exports.editSocialLink = async (req, res) => {
     try {
         const domain = req.headers.domain; // Obtener el dominio de los headers
