@@ -8,7 +8,7 @@ exports.addBanner = async (req, res) => {
     try {
         const { image, text, button } = req.body;
 
-        if (!image || !text || !Array.isArray(button) || button.length === 0) {
+        if (!image) {
             return res.status(400).json({ status: false, message: 'Required fields are missing or invalid' });
         }
 
@@ -30,7 +30,7 @@ exports.updateBanner = async (req, res) => {
     try {
         const { image, text, button } = req.body;
 
-        if (!image || !text || !Array.isArray(button) || button.length === 0) {
+        if (!image) {
             return res.status(400).json({ status: false, message: 'Required fields are missing or invalid' });
         }
 
