@@ -16,6 +16,7 @@ router.put('/config/metadata', checkDomainHeader, configController.updateMetadat
 router.put('/config/colors', checkDomainHeader, configController.updateColors);
 router.put('/config/theme', checkDomainHeader, configController.updateTheme);
 router.put('/config/catalogo', checkDomainHeader, configController.updateCatalogo);
+router.put('/config/home/whatsapp', checkDomainHeader, configController.updateWhatsappHome);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
 router.get('/list/owner',  configController.getConfigByOwner);

@@ -388,3 +388,32 @@ exports.updateTheme = async (req, res) => {
         res.status(500).json({ status: false, message: err.message });
     }
 };
+
+exports.updateWhatsappHome = async (req, res) => {
+    try {
+        const domain = req.headers["domain"];
+        if (!domain) {
+            return res.status(400).json({ message: "El dominio es requerido en el header 'x-domain'." });
+        }
+
+        const { number, message_custom, isActive } = req.body;
+        if (!number || !message_custom) {
+            return res.status(400).json({ message: "Número y mensaje personalizado son requeridos." });
+        }
+
+        const updatedConfig = await ConfigModel.findOneAndUpdate(
+            { domain },
+            { whatsapp_home: { number, message_custom, isActive } },
+            { new: true }
+        );
+
+        if (!updatedConfig) {
+            return res.status(404).json({ message: "Configuración no encontrada para el dominio proporcionado." });
+        }
+
+        res.json({ message: "WhatsApp Home actualizado con éxito", data: updatedConfig.whatsapp_home });
+    } catch (error) {
+        console.error("Error al actualizar WhatsApp Home:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};

@@ -3,12 +3,17 @@ const mongoose = require('mongoose');
 const ConfigDataSchema = new mongoose.Schema({
     domain: { type: String, required: true, unique: true },
     title: String,
-    owner_company:String,
+    owner_company: String,
     slogan: String,
     logo: String,
     theme: String,
     type_store: String,
     colors: [String],
+    whatsapp_home: {
+        number: String,
+        message_custom: String,
+        isActive: Boolean
+    },
     catalogo: {
         button: {
             text: String,
@@ -17,7 +22,9 @@ const ConfigDataSchema = new mongoose.Schema({
             color_text: String
         },
         whatsapp: {
-            number: String
+            number: String,
+            message_custom: String,
+            isActive: Boolean
         },
         currency: {
             code: String,
