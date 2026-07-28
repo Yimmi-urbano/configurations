@@ -40,6 +40,14 @@ const ConfigDataSchema = new mongoose.Schema({
             is_active: Boolean
         }
     ],
+    opening_hours: [
+        {
+            days: String,
+            hours: String,
+            is_closed: { type: Boolean, default: false }
+        }
+    ],
+    address: String,
     meta_description: String,
     meta_keyword: String,
     banner: [
@@ -61,7 +69,8 @@ const ConfigDataSchema = new mongoose.Schema({
             is_active: { type: Boolean, default: true },
             items: [{
                 action: String,
-                is_center: Boolean
+                is_center: Boolean,
+                is_display: { type: Boolean, default: true }
             }]
         }
     }
