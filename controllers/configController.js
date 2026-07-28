@@ -124,6 +124,28 @@ exports.updateLogo = async (req, res) => {
     }
 };
 
+exports.updateOrigin = async (req, res) => {
+    try {
+        const { origin } = req.body;
+        if (origin === undefined || origin === null) {
+            return res.status(400).json({ status: false, message: 'El campo origin es requerido' });
+        }
+
+        const config = await ConfigModel.findOneAndUpdate(
+            { domain: req.domain },
+            { origin: String(origin) },
+            { new: true, upsert: false }
+        );
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        res.status(200).json({ status: true, message: 'Origin updated successfully', origin: config.origin });
+    } catch (err) {
+        res.status(500).json({ status: false, message: err.message });
+    }
+};
+
 exports.updateMetadata = async (req, res) => {
     try {
         const { meta_description, meta_keyword, title, slogan } = req.body;
