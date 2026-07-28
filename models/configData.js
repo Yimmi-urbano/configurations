@@ -54,7 +54,6 @@ const ConfigDataSchema = new mongoose.Schema({
                     text_button: String
                 }
             ]
-            ]
         }
     ],
     widgets: {
