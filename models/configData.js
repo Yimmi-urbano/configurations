@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const ConfigDataSchema = new mongoose.Schema({
     domain: { type: String, required: true, unique: true },
+    origin: { type: String, default: null },
     title: String,
     owner_company: String,
     slogan: String,
@@ -53,8 +54,18 @@ const ConfigDataSchema = new mongoose.Schema({
                     text_button: String
                 }
             ]
+            ]
         }
-    ]
+    ],
+    widgets: {
+        toolbar: {
+            is_active: { type: Boolean, default: true },
+            items: [{
+                action: String,
+                is_center: Boolean
+            }]
+        }
+    }
 });
 
 module.exports = ConfigDataSchema;
