@@ -2,7 +2,7 @@ const { BetaAnalyticsDataClient } = require('@google-analytics/data');
 
 let analyticsClient;
 
-async function getHomePageTraffic({ startDate, endDate, previousStartDate, previousEndDate, pagePath, client = getAnalyticsClient() }) {
+async function getHomePageTraffic({ startDate, endDate, previousStartDate, previousEndDate, pagePath, hostName, client = getAnalyticsClient() }) {
     const propertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID;
     if (!propertyId) {
         throw new Error('GOOGLE_ANALYTICS_PROPERTY_ID no está configurada.');
@@ -13,12 +13,27 @@ async function getHomePageTraffic({ startDate, endDate, previousStartDate, previ
         dateRanges: [{ startDate: start, endDate: end }],
         metrics: [{ name: 'screenPageViews' }],
         dimensionFilter: {
-            filter: {
-                fieldName: 'pagePath',
-                stringFilter: {
-                    matchType: 'EXACT',
-                    value: pagePath,
-                },
+            andGroup: {
+                expressions: [
+                    {
+                        filter: {
+                            fieldName: 'pagePath',
+                            stringFilter: {
+                                matchType: 'EXACT',
+                                value: pagePath,
+                            },
+                        },
+                    },
+                    {
+                        filter: {
+                            fieldName: 'hostName',
+                            stringFilter: {
+                                matchType: 'EXACT',
+                                value: hostName,
+                            },
+                        },
+                    },
+                ],
             },
         },
     });

@@ -12,7 +12,7 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
     const previousOrders = orders.filter((order) => isWithinRange(order.createdAt, previousRange));
     const current = summarizeOrders(currentOrders);
     const previous = summarizeOrders(previousOrders);
-    const traffic = await getTrafficSummary({ range, previousRange, pagePath });
+    const traffic = await getTrafficSummary({ domain, range, previousRange, pagePath });
 
     return {
         range: {
@@ -38,7 +38,7 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
     };
 }
 
-async function getTrafficSummary({ range, previousRange, pagePath }) {
+async function getTrafficSummary({ domain, range, previousRange, pagePath }) {
     try {
         const traffic = await getHomePageTraffic({
             startDate: formatDate(range.start),
@@ -46,6 +46,7 @@ async function getTrafficSummary({ range, previousRange, pagePath }) {
             previousStartDate: formatDate(previousRange.start),
             previousEndDate: formatDate(previousRange.end),
             pagePath,
+            hostName: domain,
         });
 
         return {
