@@ -21,6 +21,7 @@ router.put('/config/home/whatsapp', checkDomainHeader, configController.updateWh
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
 router.get('/list/owner',  configController.getConfigByOwner);
+router.get('/dashboard/summary', checkDomainHeader, configController.getDashboardSummary);
 
 router.post('/configurations/create', checkDomainHeader, configController.createConfig);
 

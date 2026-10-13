@@ -1,8 +1,26 @@
 const mongoose = require('mongoose');
 const ConfigDataSchema = require('../models/configData');
+const { getDashboardSummary } = require('../services/dashboardSummaryService');
 //const getCollectionName = require('../utils/getCollectionName');
 
 const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
+
+exports.getDashboardSummary = async (req, res) => {
+    try {
+        const summary = await getDashboardSummary({
+            domain: req.domain,
+            query: req.query,
+        });
+
+        res.status(200).json({ status: true, data: summary });
+    } catch (error) {
+        const status = error.statusCode || 500;
+        res.status(status).json({
+            status: false,
+            message: error.message || 'No se pudo obtener el resumen del dashboard',
+        });
+    }
+};
 
 exports.addBanner = async (req, res) => {
     try {
