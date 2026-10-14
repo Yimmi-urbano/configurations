@@ -1,17 +1,21 @@
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api-orders.creceidea.pe/api/orders/list';
 const TIME_ZONE = 'America/Lima';
 const PAID_STATUSES = new Set(['completed', 'paid', 'approved', 'success']);
+const NON_CONFIRMABLE_STATUSES = new Set(['cancelled', 'canceled', 'declined', 'decline', 'failed', 'failure', 'rejected', 'refunded']);
 const { getHomePageTraffic } = require('./googleAnalyticsService');
 
 async function getDashboardSummary({ domain, query, fetcher = fetch, now = new Date() }) {
     const range = parseDateRange(query, now);
     const previousRange = getPreviousRange(range);
+    const annualRange = getAnnualRange(range.end);
     const pagePath = parsePagePath(query.pagePath);
     const orders = await getOrders(domain, fetcher);
     const currentOrders = orders.filter((order) => isWithinRange(order.createdAt, range));
     const previousOrders = orders.filter((order) => isWithinRange(order.createdAt, previousRange));
+    const annualOrders = orders.filter((order) => isWithinRange(order.createdAt, annualRange));
     const current = summarizeOrders(currentOrders);
     const previous = summarizeOrders(previousOrders);
+    const annual = summarizeOrders(annualOrders);
     const traffic = await getTrafficSummary({ domain, range, previousRange, pagePath });
 
     return {
@@ -25,6 +29,17 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
             currency: 'PEN',
             confirmedOrders: current.confirmedOrders,
             changePercentage: percentageChange(current.revenue, previous.revenue),
+            history: buildRevenueHistory(currentOrders, range),
+        },
+        annual: {
+            year: annualRange.start.getUTCFullYear(),
+            totalOrders: annual.totalOrders,
+            totalAmount: annual.totalAmount,
+            confirmedOrders: annual.confirmedOrders,
+            confirmedAmount: annual.revenue,
+            pendingOrders: annual.pendingOrders,
+            pendingAmount: annual.pendingRevenue,
+            currency: 'PEN',
         },
         orders: {
             total: current.totalOrders,
@@ -112,15 +127,46 @@ function summarizeOrders(orders) {
         const total = Number(order.total) || 0;
 
         summary.totalOrders += 1;
+        summary.totalAmount += total;
         summary.byPaymentStatus[paymentStatus] = (summary.byPaymentStatus[paymentStatus] || 0) + 1;
 
         if (PAID_STATUSES.has(paymentStatus)) {
             summary.confirmedOrders += 1;
             summary.revenue += total;
+        } else if (!NON_CONFIRMABLE_STATUSES.has(paymentStatus)) {
+            summary.pendingOrders += 1;
+            summary.pendingRevenue += total;
         }
 
         return summary;
-    }, { totalOrders: 0, confirmedOrders: 0, revenue: 0, byPaymentStatus: {} });
+    }, {
+        totalOrders: 0,
+        totalAmount: 0,
+        confirmedOrders: 0,
+        revenue: 0,
+        pendingOrders: 0,
+        pendingRevenue: 0,
+        byPaymentStatus: {},
+    });
+}
+
+function buildRevenueHistory(orders, range) {
+    const amountsByDate = new Map();
+    for (const order of orders) {
+        const paymentStatus = String(order.paymentStatus?.typeStatus || 'pending').toLowerCase();
+        const orderDate = parseOrderDate(order.createdAt);
+        if (!PAID_STATUSES.has(paymentStatus) || !orderDate) continue;
+
+        const date = formatDate(orderDate);
+        amountsByDate.set(date, (amountsByDate.get(date) || 0) + (Number(order.total) || 0));
+    }
+
+    const history = [];
+    for (let date = new Date(range.start); date <= range.end; date.setUTCDate(date.getUTCDate() + 1)) {
+        const label = formatDate(date);
+        history.push({ label, amount: amountsByDate.get(label) || 0 });
+    }
+    return history;
 }
 
 function parseDateRange(query, now) {
@@ -176,6 +222,14 @@ function getPreviousRange({ start, end }) {
     return { start: previousStart, end: previousEnd };
 }
 
+function getAnnualRange(endDate) {
+    const year = endDate.getUTCFullYear();
+    return {
+        start: new Date(Date.UTC(year, 0, 1)),
+        end: new Date(endDate),
+    };
+}
+
 function isWithinRange(value, range) {
     const date = parseOrderDate(value);
     return date !== null && date >= range.start && date <= range.end;
@@ -211,4 +265,5 @@ module.exports = {
     getDashboardSummary,
     parseDateRange,
     summarizeOrders,
+    buildRevenueHistory,
 };
