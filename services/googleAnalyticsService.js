@@ -38,14 +38,32 @@ async function getHomePageTraffic({ startDate, endDate, previousStartDate, previ
         },
     });
 
-    const [[currentReport], [previousReport]] = await Promise.all([
+    const channelRequest = client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: {
+            filter: {
+                fieldName: 'hostName',
+                stringFilter: {
+                    matchType: 'EXACT',
+                    value: hostName,
+                },
+            },
+        },
+    });
+
+    const [[currentReport], [previousReport], [channelReport]] = await Promise.all([
         request(startDate, endDate),
         request(previousStartDate, previousEndDate),
+        channelRequest,
     ]);
 
     return {
         visits: getMetricValue(currentReport),
         previousVisits: getMetricValue(previousReport),
+        channels: getChannelRows(channelReport),
     };
 }
 
@@ -68,4 +86,14 @@ function getMetricValue(report) {
     return Number(report.rows?.[0]?.metricValues?.[0]?.value || 0);
 }
 
-module.exports = { getHomePageTraffic };
+function getChannelRows(report) {
+    return (report.rows || [])
+        .map((row) => ({
+            name: row.dimensionValues?.[0]?.value || 'Sin clasificar',
+            sessions: Number(row.metricValues?.[0]?.value || 0),
+        }))
+        .filter((channel) => channel.sessions > 0)
+        .sort((first, second) => second.sessions - first.sessions);
+}
+
+module.exports = { getHomePageTraffic, getChannelRows };

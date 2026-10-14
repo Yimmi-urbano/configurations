@@ -69,6 +69,7 @@ async function getTrafficSummary({ domain, range, previousRange, pagePath }) {
             visits: traffic.visits,
             changePercentage: percentageChange(traffic.visits, traffic.previousVisits),
             pagePath,
+            channels: traffic.channels,
         };
     } catch (error) {
         return {
@@ -76,6 +77,7 @@ async function getTrafficSummary({ domain, range, previousRange, pagePath }) {
             visits: null,
             changePercentage: null,
             pagePath,
+            channels: [],
             reason: `No se pudo consultar Google Analytics: ${error.message}`,
         };
     }
