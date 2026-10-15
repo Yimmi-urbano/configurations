@@ -1,4 +1,5 @@
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api-orders.creceidea.pe/api/orders/list';
+const mongoose = require('mongoose');
 const TIME_ZONE = 'America/Lima';
 const PAID_STATUSES = new Set(['completed', 'paid', 'approved', 'success']);
 const NON_CONFIRMABLE_STATUSES = new Set(['cancelled', 'canceled', 'declined', 'decline', 'failed', 'failure', 'rejected', 'refunded']);
@@ -45,6 +46,7 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
             total: current.totalOrders,
             changePercentage: percentageChange(current.totalOrders, previous.totalOrders),
             byPaymentStatus: current.byPaymentStatus,
+            byOrderStatus: current.byOrderStatus,
         },
         sales: {
             changePercentage: percentageChange(current.revenue, previous.revenue),
@@ -125,12 +127,14 @@ async function fetchOrderPage(domain, page, fetcher) {
 
 function summarizeOrders(orders) {
     return orders.reduce((summary, order) => {
-        const paymentStatus = String(order.paymentStatus?.typeStatus || 'pending').toLowerCase();
+        const paymentStatus = String(order.paymentStatus?.typeStatus || 'pending').trim().toLowerCase() || 'pending';
+        const orderStatus = String(order.orderStatus?.typeStatus || 'pending').trim().toLowerCase() || 'pending';
         const total = Number(order.total) || 0;
 
         summary.totalOrders += 1;
         summary.totalAmount += total;
         summary.byPaymentStatus[paymentStatus] = (summary.byPaymentStatus[paymentStatus] || 0) + 1;
+        summary.byOrderStatus[orderStatus] = (summary.byOrderStatus[orderStatus] || 0) + 1;
 
         if (PAID_STATUSES.has(paymentStatus)) {
             summary.confirmedOrders += 1;
@@ -149,7 +153,52 @@ function summarizeOrders(orders) {
         pendingOrders: 0,
         pendingRevenue: 0,
         byPaymentStatus: {},
+        byOrderStatus: {},
     });
+}
+
+async function getTopCustomers({ domain, query = {}, now = new Date() }) {
+    const range = parseTopCustomersRange(query, now);
+    const limit = parseLimit(query.limit);
+    const sortBy = parseCustomerSortBy(query.sortBy);
+    const paidOrders = await getConfirmedOrdersFromDatabase(domain, range);
+
+    return {
+        range: {
+            startDate: formatDate(range.start),
+            endDate: formatDate(range.end),
+            timezone: TIME_ZONE,
+        },
+        sortBy,
+        customers: aggregateTopCustomers(paidOrders, { limit, sortBy }),
+    };
+}
+
+async function getConfirmedOrdersFromDatabase(domain, range) {
+    if (mongoose.connection.readyState !== 1) {
+        throw createHttpError(503, 'La conexión principal a MongoDB no está disponible.');
+    }
+
+    const collection = mongoose.connection.collection('orders');
+    const endExclusive = new Date(range.end);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+
+    try {
+        return await collection.find({
+            domain,
+            'paymentStatus.typeStatus': { $in: [...PAID_STATUSES] },
+            createdAt: { $gte: range.start, $lt: endExclusive },
+        }, {
+            projection: {
+                clientInfo: 1,
+                createdAt: 1,
+                products: 1,
+                total: 1,
+            },
+        }).toArray();
+    } catch (error) {
+        throw createHttpError(502, `No se pudo consultar la colección de órdenes: ${error.message}`);
+    }
 }
 
 function buildRevenueHistory(orders, range) {
@@ -169,6 +218,114 @@ function buildRevenueHistory(orders, range) {
         history.push({ label, amount: amountsByDate.get(label) || 0 });
     }
     return history;
+}
+
+function aggregateTopCustomers(orders, { limit, sortBy }) {
+    const customers = new Map();
+
+    for (const order of orders) {
+        const customer = getCustomerIdentity(order.clientInfo);
+        if (!customer) continue;
+
+        const current = customers.get(customer.key) || {
+            customerKey: customer.key,
+            name: customer.name,
+            initials: getInitials(customer.name),
+            amount: 0,
+            orders: 0,
+            products: new Map(),
+        };
+
+        current.amount += Number(order.total) || 0;
+        current.orders += 1;
+
+        for (const product of Array.isArray(order.products) ? order.products : []) {
+            const title = String(product?.title || '').trim();
+            if (!title) continue;
+            const quantity = Number(product.qty) || 1;
+            current.products.set(title, (current.products.get(title) || 0) + quantity);
+        }
+
+        customers.set(customer.key, current);
+    }
+
+    return [...customers.values()]
+        .map((customer) => ({
+            name: customer.name,
+            initials: customer.initials,
+            amount: Number(customer.amount.toFixed(2)),
+            orders: customer.orders,
+            detail: buildProductDetail(customer.products),
+        }))
+        .sort((left, right) => {
+            const first = sortBy === 'orders' ? right.orders - left.orders : right.amount - left.amount;
+            if (first !== 0) return first;
+
+            const second = sortBy === 'orders' ? right.amount - left.amount : right.orders - left.orders;
+            return second !== 0 ? second : left.name.localeCompare(right.name, 'es');
+        })
+        .slice(0, limit);
+}
+
+function getCustomerIdentity(clientInfo) {
+    if (!clientInfo || typeof clientInfo !== 'object') return null;
+
+    const documentNumber = normalizeIdentifier(clientInfo.number_doc);
+    const email = String(clientInfo.email || '').trim().toLowerCase();
+    const phone = normalizeIdentifier(clientInfo.phone);
+    const name = [clientInfo.first_name, clientInfo.last_name]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' ');
+    const normalizedName = normalizeName(name);
+    const key = documentNumber
+        ? `document:${documentNumber}`
+        : email
+            ? `email:${email}`
+            : phone
+                ? `phone:${phone}`
+                : normalizedName
+                    ? `name:${normalizedName}`
+                    : null;
+
+    if (!key) return null;
+
+    return {
+        key,
+        name: name || email || phone || 'Cliente sin nombre',
+    };
+}
+
+function normalizeIdentifier(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+function normalizeName(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function getInitials(name) {
+    return String(name)
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('') || 'CL';
+}
+
+function buildProductDetail(products) {
+    const sorted = [...products.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'es'));
+    if (!sorted.length) return 'Sin productos registrados';
+
+    const [first, second] = sorted;
+    const labels = [first, second].filter(Boolean).map(([title]) => title);
+    const remaining = sorted.length - labels.length;
+    return `${labels.join(', ')}${remaining ? ` + ${remaining} más` : ''}`;
 }
 
 function parseDateRange(query, now) {
@@ -224,6 +381,30 @@ function getPreviousRange({ start, end }) {
     return { start: previousStart, end: previousEnd };
 }
 
+function parseTopCustomersRange(query, now) {
+    if (query.date || query.startDate || query.endDate) return parseDateRange(query, now);
+
+    const end = startOfDayInLima(now);
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 29);
+    return { start, end };
+}
+
+function parseLimit(value) {
+    if (value === undefined) return 5;
+    const limit = Number(value);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+        throw createHttpError(400, 'limit debe ser un entero entre 1 y 50.');
+    }
+    return limit;
+}
+
+function parseCustomerSortBy(value) {
+    if (value === undefined || value === 'amount') return 'amount';
+    if (value === 'orders') return 'orders';
+    throw createHttpError(400, 'sortBy debe ser amount u orders.');
+}
+
 function getAnnualRange(endDate) {
     const year = endDate.getUTCFullYear();
     return {
@@ -238,6 +419,11 @@ function isWithinRange(value, range) {
 }
 
 function parseOrderDate(value) {
+    if (value instanceof Date) {
+        return Number.isNaN(value.valueOf())
+            ? null
+            : new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+    }
     if (typeof value !== 'string') return null;
     const peruvianDate = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
     if (peruvianDate) {
@@ -265,7 +451,9 @@ function createHttpError(statusCode, message) {
 
 module.exports = {
     getDashboardSummary,
+    getTopCustomers,
     parseDateRange,
     summarizeOrders,
     buildRevenueHistory,
+    aggregateTopCustomers,
 };
