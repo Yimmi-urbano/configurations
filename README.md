@@ -10,6 +10,17 @@
 
 La respuesta incluye ingresos confirmados, pedidos, variación contra el período anterior equivalente y los estados de pago. El tráfico usa Google Analytics Data API y cuenta `screenPageViews` para la ruta de inicio. Se puede cambiar con `?pagePath=/ruta`; por defecto usa `/` o `GOOGLE_ANALYTICS_HOME_PATH`.
 
+## Mejores clientes
+
+`GET /api/dashboard/top-customers` recibe el dominio en el header `domain` y consulta directamente la colección `orders` de la conexión principal a MongoDB. Agrupa únicamente órdenes con pago confirmado en el servidor, sin descargar la lista de pedidos al frontend.
+
+- Por defecto usa los últimos 30 días.
+- `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` define un rango inclusivo.
+- `?limit=5` limita el resultado entre 1 y 50 clientes.
+- `?sortBy=amount` ordena por monto comprado; `?sortBy=orders` por número de pedidos.
+
+Cada cliente incluye `name`, `initials`, `amount`, `orders` y `detail` con sus productos más comprados. Para evitar duplicados, se agrupa por documento, correo, teléfono o nombre normalizado, en ese orden.
+
 Para habilitar Analytics se requieren estas variables de entorno:
 
 ```env

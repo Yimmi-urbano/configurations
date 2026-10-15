@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const ConfigDataSchema = require('../models/configData');
-const { getDashboardSummary } = require('../services/dashboardSummaryService');
+const { getDashboardSummary, getTopCustomers } = require('../services/dashboardSummaryService');
 //const getCollectionName = require('../utils/getCollectionName');
 
 const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
@@ -18,6 +18,23 @@ exports.getDashboardSummary = async (req, res) => {
         res.status(status).json({
             status: false,
             message: error.message || 'No se pudo obtener el resumen del dashboard',
+        });
+    }
+};
+
+exports.getTopCustomers = async (req, res) => {
+    try {
+        const result = await getTopCustomers({
+            domain: req.domain,
+            query: req.query,
+        });
+
+        res.status(200).json({ status: true, data: result });
+    } catch (error) {
+        const status = error.statusCode || 500;
+        res.status(status).json({
+            status: false,
+            message: error.message || 'No se pudo obtener los mejores clientes',
         });
     }
 };
