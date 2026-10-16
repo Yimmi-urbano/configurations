@@ -18,6 +18,8 @@ router.put('/config/colors', checkDomainHeader, configController.updateColors);
 router.put('/config/theme', checkDomainHeader, configController.updateTheme);
 router.put('/config/catalogo', checkDomainHeader, configController.updateCatalogo);
 router.put('/config/home/whatsapp', checkDomainHeader, configController.updateWhatsappHome);
+router.get('/config/order-notifications', checkDomainHeader, configController.getOrderNotifications);
+router.put('/config/order-notifications', checkDomainHeader, configController.updateOrderNotifications);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
 router.get('/list/owner',  configController.getConfigByOwner);

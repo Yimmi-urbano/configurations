@@ -236,6 +236,67 @@ exports.getConfigByDomain = async (req, res) => {
     }
 };
 
+exports.getOrderNotifications = async (req, res) => {
+    try {
+        const config = await ConfigModel.findOne({ domain: req.domain }, 'order_notifications');
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        const notifications = config.order_notifications || {};
+        return res.status(200).json({
+            status: true,
+            data: {
+                isActive: Boolean(notifications.is_active),
+                phone: notifications.phone || null,
+            },
+        });
+    } catch (err) {
+        return res.status(500).json({ status: false, message: err.message });
+    }
+};
+
+exports.updateOrderNotifications = async (req, res) => {
+    try {
+        const { isActive, phone } = req.body;
+
+        if (typeof isActive !== 'boolean') {
+            return res.status(400).json({ status: false, message: 'El campo isActive debe ser booleano.' });
+        }
+
+        const normalizedPhone = typeof phone === 'string' ? phone.replace(/\D/g, '') : '';
+        if (isActive && (normalizedPhone.length < 8 || normalizedPhone.length > 15)) {
+            return res.status(400).json({ status: false, message: 'Ingresa un número de WhatsApp válido con código de país.' });
+        }
+
+        const config = await ConfigModel.findOneAndUpdate(
+            { domain: req.domain },
+            {
+                order_notifications: {
+                    is_active: isActive,
+                    phone: normalizedPhone || null,
+                },
+            },
+            { new: true, upsert: false },
+        );
+
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        return res.status(200).json({
+            status: true,
+            message: 'Notificaciones de pedidos actualizadas.',
+            data: {
+                isActive: Boolean(config.order_notifications?.is_active),
+                phone: config.order_notifications?.phone || null,
+            },
+        });
+    } catch (err) {
+        return res.status(500).json({ status: false, message: err.message });
+    }
+};
+
 exports.getConfigByOwner = async (req, res) => {
     try {
         const ownerCompany = req.headers['company'];

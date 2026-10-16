@@ -15,6 +15,10 @@ const ConfigDataSchema = new mongoose.Schema({
         message_custom: String,
         isActive: Boolean
     },
+    order_notifications: {
+        is_active: { type: Boolean, default: false },
+        phone: { type: String, default: null }
+    },
     catalogo: {
         button: {
             text: String,
