@@ -1,9 +1,12 @@
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api-orders.creceidea.pe/api/orders/list';
+const PRODUCTS_API_URL = process.env.PRODUCTS_API_URL || 'https://api-products.creceidea.pe/api/products';
 const mongoose = require('mongoose');
 const TIME_ZONE = 'America/Lima';
 const PAID_STATUSES = new Set(['completed', 'paid', 'approved', 'success']);
 const NON_CONFIRMABLE_STATUSES = new Set(['cancelled', 'canceled', 'declined', 'decline', 'failed', 'failure', 'rejected', 'refunded']);
-const { getHomePageTraffic } = require('./googleAnalyticsService');
+const { getHomePageTraffic, getTopProductPages } = require('./googleAnalyticsService');
+const topViewedProductsCache = new Map();
+const TOP_VIEWED_PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function getDashboardSummary({ domain, query, fetcher = fetch, now = new Date() }) {
     const range = parseDateRange(query, now);
@@ -172,6 +175,71 @@ async function getTopCustomers({ domain, query = {}, now = new Date() }) {
         sortBy,
         customers: aggregateTopCustomers(paidOrders, { limit, sortBy }),
     };
+}
+
+async function getTopViewedProducts({ domain, query = {}, fetcher = fetch, now = new Date() }) {
+    const range = getCurrentWeekRange(now);
+    const previousRange = getPreviousRange(range);
+    const limit = parseViewedProductsLimit(query.limit);
+    const cacheKey = [domain, formatDate(range.start), formatDate(range.end), limit].join(':');
+    const cached = topViewedProductsCache.get(cacheKey);
+    if (cached && Date.now() - cached.createdAt < TOP_VIEWED_PRODUCTS_CACHE_TTL_MS) {
+        return cached.value;
+    }
+
+    try {
+        const products = await getTopProductPages({
+            startDate: formatDate(range.start),
+            endDate: formatDate(range.end),
+            previousStartDate: formatDate(previousRange.start),
+            previousEndDate: formatDate(previousRange.end),
+            hostName: domain,
+        });
+
+        const topProducts = products.slice(0, limit).map((product) => ({
+            ...product,
+            changePercentage: percentageChange(product.views, product.previousViews),
+        }));
+        const result = {
+            available: true,
+            range: toRangeResponse(range),
+            previousRange: toRangeResponse(previousRange),
+            products: await enrichViewedProducts(domain, topProducts, fetcher),
+        };
+        topViewedProductsCache.set(cacheKey, { createdAt: Date.now(), value: result });
+        return result;
+    } catch (error) {
+        return {
+            available: false,
+            range: toRangeResponse(range),
+            previousRange: toRangeResponse(previousRange),
+            products: [],
+            reason: `No se pudo consultar Google Analytics: ${error.message}`,
+        };
+    }
+}
+
+async function enrichViewedProducts(domain, products, fetcher) {
+    return Promise.all(products.map(async (product) => {
+        try {
+            const response = await fetcher(`${PRODUCTS_API_URL.replace(/\/$/, '')}/slug/${encodeURIComponent(product.slug)}`, {
+                headers: { domain },
+            });
+            if (!response.ok) return { ...product, image: null };
+
+            const catalogProduct = await response.json();
+            const image = Array.isArray(catalogProduct?.image_default)
+                ? catalogProduct.image_default.find((value) => typeof value === 'string' && value.trim()) || null
+                : null;
+            return {
+                ...product,
+                title: String(catalogProduct?.title || product.title).trim() || product.title,
+                image,
+            };
+        } catch {
+            return { ...product, image: null };
+        }
+    }));
 }
 
 async function getConfirmedOrdersFromDatabase(domain, range) {
@@ -390,6 +458,31 @@ function parseTopCustomersRange(query, now) {
     return { start, end };
 }
 
+function parseViewedProductsLimit(value) {
+    if (value === undefined) return 5;
+    const limit = Number(value);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 10) {
+        throw createHttpError(400, 'limit debe ser un entero entre 1 y 10.');
+    }
+    return limit;
+}
+
+function getCurrentWeekRange(now) {
+    const end = startOfDayInLima(now);
+    const start = new Date(end);
+    const daysSinceMonday = (start.getUTCDay() + 6) % 7;
+    start.setUTCDate(start.getUTCDate() - daysSinceMonday);
+    return { start, end };
+}
+
+function toRangeResponse(range) {
+    return {
+        startDate: formatDate(range.start),
+        endDate: formatDate(range.end),
+        timezone: TIME_ZONE,
+    };
+}
+
 function parseLimit(value) {
     if (value === undefined) return 5;
     const limit = Number(value);
@@ -452,6 +545,7 @@ function createHttpError(statusCode, message) {
 module.exports = {
     getDashboardSummary,
     getTopCustomers,
+    getTopViewedProducts,
     parseDateRange,
     summarizeOrders,
     buildRevenueHistory,

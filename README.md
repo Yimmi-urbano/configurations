@@ -21,6 +21,14 @@ La respuesta incluye ingresos confirmados, pedidos, variación contra el períod
 
 Cada cliente incluye `name`, `initials`, `amount`, `orders` y `detail` con sus productos más comprados. Para evitar duplicados, se agrupa por documento, correo, teléfono o nombre normalizado, en ese orden.
 
+## Productos más vistos de la semana
+
+`GET /api/dashboard/top-viewed-products` recibe el dominio en el header `domain` y usa Google Analytics para listar las rutas públicas `/product/:slug` con más vistas desde el lunes hasta hoy. Cada producto se compara con el mismo tramo de la semana anterior.
+
+- `?limit=5` limita el resultado entre 1 y 10 productos.
+- Devuelve `slug`, `title`, `views`, `previousViews` y `changePercentage`.
+- La consulta se conserva en memoria durante cinco minutos por dominio y semana para evitar llamadas repetidas a Google Analytics.
+
 Para habilitar Analytics se requieren estas variables de entorno:
 
 ```env

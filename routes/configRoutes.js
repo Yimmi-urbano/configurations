@@ -23,6 +23,7 @@ router.get('/configurations', checkDomainHeader, configController.getConfigByDom
 router.get('/list/owner',  configController.getConfigByOwner);
 router.get('/dashboard/summary', checkDomainHeader, configController.getDashboardSummary);
 router.get('/dashboard/top-customers', checkDomainHeader, configController.getTopCustomers);
+router.get('/dashboard/top-viewed-products', checkDomainHeader, configController.getTopViewedProducts);
 
 router.post('/configurations/create', checkDomainHeader, configController.createConfig);
 

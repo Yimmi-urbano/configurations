@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const ConfigDataSchema = require('../models/configData');
-const { getDashboardSummary, getTopCustomers } = require('../services/dashboardSummaryService');
+const { getDashboardSummary, getTopCustomers, getTopViewedProducts } = require('../services/dashboardSummaryService');
 //const getCollectionName = require('../utils/getCollectionName');
 
 const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
@@ -35,6 +35,23 @@ exports.getTopCustomers = async (req, res) => {
         res.status(status).json({
             status: false,
             message: error.message || 'No se pudo obtener los mejores clientes',
+        });
+    }
+};
+
+exports.getTopViewedProducts = async (req, res) => {
+    try {
+        const result = await getTopViewedProducts({
+            domain: req.domain,
+            query: req.query,
+        });
+
+        res.status(200).json({ status: true, data: result });
+    } catch (error) {
+        const status = error.statusCode || 500;
+        res.status(status).json({
+            status: false,
+            message: error.message || 'No se pudo obtener los productos más vistos',
         });
     }
 };
