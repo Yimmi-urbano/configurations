@@ -233,13 +233,22 @@ async function enrichViewedProducts(domain, products, fetcher) {
                 : null;
             return {
                 ...product,
-                title: String(catalogProduct?.title || product.title).trim() || product.title,
+                title: getViewedProductTitle(catalogProduct?.title, product.title, product.slug),
                 image,
             };
         } catch {
             return { ...product, image: null };
         }
     }));
+}
+
+function getViewedProductTitle(catalogTitle, analyticsTitle, slug) {
+    const title = String(catalogTitle || analyticsTitle || '').trim();
+    if (title && !/[|—]/.test(title)) return title;
+
+    return String(slug)
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 async function getConfirmedOrdersFromDatabase(domain, range) {
