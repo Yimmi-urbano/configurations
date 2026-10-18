@@ -77,6 +77,27 @@ const ConfigDataSchema = new mongoose.Schema({
                 is_display: { type: Boolean, default: true }
             }]
         }
+    },
+    storefront_appearance: {
+        background: {
+            type: { type: String, default: 'solid' },
+            solid_color: { type: String, default: '#F8FAFC' },
+            gradient_from: { type: String, default: '#FFF7ED' },
+            gradient_to: { type: String, default: '#F1F5F9' },
+            gradient_angle: { type: Number, default: 135 },
+            image_url: { type: String, default: '' },
+            image_opacity: { type: Number, default: 1 }
+        },
+        accessories: [{
+            id: String,
+            name: String,
+            kind: { type: String, default: 'image' },
+            image_url: { type: String, default: '' },
+            placement: { type: String, default: 'top-right' },
+            size: { type: String, default: 'medium' },
+            animation: { type: String, default: 'none' },
+            is_active: { type: Boolean, default: true }
+        }]
     }
 });
 

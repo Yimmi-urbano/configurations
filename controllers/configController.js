@@ -524,6 +524,77 @@ exports.updateTheme = async (req, res) => {
     }
 };
 
+exports.updateStorefrontAppearance = async (req, res) => {
+    try {
+        const appearance = normalizeStorefrontAppearance(req.body?.appearance);
+        if (!appearance) {
+            return res.status(400).json({ status: false, message: 'La apariencia del catálogo no es válida.' });
+        }
+
+        const config = await ConfigModel.findOneAndUpdate(
+            { domain: req.domain },
+            { storefront_appearance: appearance },
+            { new: true, upsert: false },
+        );
+        if (!config) {
+            return res.status(404).json({ status: false, message: 'Configuration not found' });
+        }
+
+        return res.status(200).json({
+            status: true,
+            message: 'Apariencia del catálogo actualizada.',
+            data: config.storefront_appearance,
+        });
+    } catch (error) {
+        return res.status(500).json({ status: false, message: error.message });
+    }
+};
+
+function normalizeStorefrontAppearance(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+    const background = value.background && typeof value.background === 'object' && !Array.isArray(value.background)
+        ? value.background
+        : {};
+    const backgroundType = ['solid', 'gradient', 'image'].includes(background.type) ? background.type : 'solid';
+    const accessories = Array.isArray(value.accessories) ? value.accessories : [];
+
+    return {
+        background: {
+            type: backgroundType,
+            solid_color: cleanColor(background.solid_color, '#F8FAFC'),
+            gradient_from: cleanColor(background.gradient_from, '#FFF7ED'),
+            gradient_to: cleanColor(background.gradient_to, '#F1F5F9'),
+            gradient_angle: clampNumber(background.gradient_angle, 0, 360, 135),
+            image_url: cleanText(background.image_url, 2_000),
+            image_opacity: clampNumber(background.image_opacity, 0, 1, 1),
+        },
+        accessories: accessories.slice(0, 20).map((item, index) => ({
+            id: cleanText(item?.id, 80) || `accessory-${Date.now()}-${index}`,
+            name: cleanText(item?.name, 100) || 'Accesorio',
+            kind: ['bat', 'pumpkin', 'image'].includes(item?.kind) ? item.kind : 'image',
+            image_url: cleanText(item?.image_url, 2_000),
+            placement: ['top-left', 'top-right', 'near-logo', 'bottom-left', 'bottom-right'].includes(item?.placement) ? item.placement : 'top-right',
+            size: ['small', 'medium', 'large'].includes(item?.size) ? item.size : 'medium',
+            animation: ['none', 'float', 'fly'].includes(item?.animation) ? item.animation : 'none',
+            is_active: item?.is_active !== false,
+        })),
+    };
+}
+
+function cleanText(value, maximumLength) {
+    return typeof value === 'string' ? value.trim().slice(0, maximumLength) : '';
+}
+
+function cleanColor(value, fallback) {
+    return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : fallback;
+}
+
+function clampNumber(value, minimum, maximum, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.min(Math.max(number, minimum), maximum) : fallback;
+}
+
 exports.updateWhatsappHome = async (req, res) => {
     try {
         const domain = req.headers["domain"];
