@@ -34,6 +34,9 @@ const ConfigDataSchema = new mongoose.Schema({
         currency: {
             code: String,
             symbol: String
+        },
+        stock: {
+            allow_purchase_without_stock: { type: Boolean, default: false }
         }
     },
     social_links: [
