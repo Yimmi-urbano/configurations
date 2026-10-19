@@ -36,7 +36,10 @@ const ConfigDataSchema = new mongoose.Schema({
             symbol: String
         },
         stock: {
-            allow_purchase_without_stock: { type: Boolean, default: false }
+            show_out_of_stock_products: { type: Boolean, default: true },
+            allow_purchase_without_stock: { type: Boolean, default: false },
+            show_stock_quantity: { type: Boolean, default: true },
+            out_of_stock_label: { type: String, default: 'Agotado' }
         }
     },
     social_links: [
