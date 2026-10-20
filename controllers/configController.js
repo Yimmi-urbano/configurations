@@ -568,6 +568,9 @@ function normalizeStorefrontAppearance(value) {
             gradient_angle: clampNumber(background.gradient_angle, 0, 360, 135),
             image_url: cleanText(background.image_url, 2_000),
             image_opacity: clampNumber(background.image_opacity, 0, 1, 1),
+            image_fit: ['cover', 'contain', 'auto'].includes(background.image_fit) ? background.image_fit : 'cover',
+            image_repeat: ['no-repeat', 'repeat', 'repeat-x', 'repeat-y'].includes(background.image_repeat) ? background.image_repeat : 'no-repeat',
+            image_position: ['top', 'center', 'bottom'].includes(background.image_position) ? background.image_position : 'center',
         },
         accessories: accessories.slice(0, 20).map((item, index) => ({
             id: cleanText(item?.id, 80) || `accessory-${Date.now()}-${index}`,

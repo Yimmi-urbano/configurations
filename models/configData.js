@@ -92,7 +92,10 @@ const ConfigDataSchema = new mongoose.Schema({
             gradient_to: { type: String, default: '#F1F5F9' },
             gradient_angle: { type: Number, default: 135 },
             image_url: { type: String, default: '' },
-            image_opacity: { type: Number, default: 1 }
+            image_opacity: { type: Number, default: 1 },
+            image_fit: { type: String, default: 'cover' },
+            image_repeat: { type: String, default: 'no-repeat' },
+            image_position: { type: String, default: 'center' }
         },
         accessories: [{
             id: String,
