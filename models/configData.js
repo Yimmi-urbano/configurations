@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const ConfigDataSchema = new mongoose.Schema({
     domain: { type: String, required: true, unique: true },
+    timeZone: { type: String, default: 'America/Lima' },
     origin: { type: String, default: null },
     title: String,
     owner_company: String,

@@ -23,6 +23,8 @@ router.get('/config/order-notifications', checkDomainHeader, configController.ge
 router.put('/config/order-notifications', checkDomainHeader, configController.updateOrderNotifications);
 
 router.get('/configurations', checkDomainHeader, configController.getConfigByDomain);
+router.get('/configurations/time-zone', checkDomainHeader, configController.getTimeZone);
+router.put('/configurations/time-zone', checkDomainHeader, configController.updateTimeZone);
 router.get('/list/owner',  configController.getConfigByOwner);
 router.get('/dashboard/summary', checkDomainHeader, configController.getDashboardSummary);
 router.get('/dashboard/top-customers', checkDomainHeader, configController.getTopCustomers);

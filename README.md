@@ -1,5 +1,13 @@
 # config-store
 
+## Zona horaria por negocio
+
+`GET /api/configurations/time-zone` devuelve la preferencia IANA del dominio enviado en el header `domain`. Si el negocio aún no tiene una preferencia guardada, devuelve `America/Lima`.
+
+`PUT /api/configurations/time-zone` recibe `{ "timeZone": "America/Lima" }` y guarda una zona IANA válida en el documento de configuración de ese dominio. El dashboard usa esta preferencia para convertir rangos inclusivos a días del negocio. El resumen, mejores clientes, productos vistos y consultas de Google Analytics usan las mismas fechas calendario y devuelven la zona aplicada.
+
+En desarrollo, el administrador apunta a `http://127.0.0.1:7000/api`; `PORT=7000` puede definirse en el `.env` de este servicio.
+
 ## Resumen del dashboard
 
 `GET /api/dashboard/summary` recibe el dominio en el header `domain` y consulta las órdenes reales del negocio.

@@ -1,7 +1,7 @@
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api-orders.creceidea.pe/api/orders/list';
 const PRODUCTS_API_URL = process.env.PRODUCTS_API_URL || 'https://api-products.creceidea.pe/api/products';
 const mongoose = require('mongoose');
-const TIME_ZONE = 'America/Lima';
+const { DEFAULT_TIME_ZONE, dateKeyToInstant, getDateKeyInTimeZone, getDomainTimeZone } = require('./timeZoneService');
 const PAID_STATUSES = new Set(['completed', 'paid', 'approved', 'success']);
 const NON_CONFIRMABLE_STATUSES = new Set(['cancelled', 'canceled', 'declined', 'decline', 'failed', 'failure', 'rejected', 'refunded']);
 const { getHomePageTraffic, getTopProductPages } = require('./googleAnalyticsService');
@@ -9,7 +9,8 @@ const topViewedProductsCache = new Map();
 const TOP_VIEWED_PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function getDashboardSummary({ domain, query, fetcher = fetch, now = new Date() }) {
-    const range = parseDateRange(query, now);
+    const timeZone = await getDomainTimeZone(domain);
+    const range = parseDateRange(query, now, timeZone);
     const previousRange = getPreviousRange(range);
     const annualRange = getAnnualRange(range.end);
     const pagePath = parsePagePath(query.pagePath);
@@ -26,7 +27,7 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
         range: {
             startDate: formatDate(range.start),
             endDate: formatDate(range.end),
-            timezone: TIME_ZONE,
+            timezone: timeZone,
         },
         revenue: {
             total: current.revenue,
@@ -48,6 +49,8 @@ async function getDashboardSummary({ domain, query, fetcher = fetch, now = new D
         orders: {
             total: current.totalOrders,
             changePercentage: percentageChange(current.totalOrders, previous.totalOrders),
+            pendingOrders: current.pendingOrders,
+            pendingAmount: current.pendingRevenue,
             byPaymentStatus: current.byPaymentStatus,
             byOrderStatus: current.byOrderStatus,
         },
@@ -161,16 +164,17 @@ function summarizeOrders(orders) {
 }
 
 async function getTopCustomers({ domain, query = {}, now = new Date() }) {
-    const range = parseTopCustomersRange(query, now);
+    const timeZone = await getDomainTimeZone(domain);
+    const range = parseTopCustomersRange(query, now, timeZone);
     const limit = parseLimit(query.limit);
     const sortBy = parseCustomerSortBy(query.sortBy);
-    const paidOrders = await getConfirmedOrdersFromDatabase(domain, range);
+    const paidOrders = await getConfirmedOrdersFromDatabase(domain, range, timeZone);
 
     return {
         range: {
             startDate: formatDate(range.start),
             endDate: formatDate(range.end),
-            timezone: TIME_ZONE,
+            timezone: timeZone,
         },
         sortBy,
         customers: aggregateTopCustomers(paidOrders, { limit, sortBy }),
@@ -178,7 +182,10 @@ async function getTopCustomers({ domain, query = {}, now = new Date() }) {
 }
 
 async function getTopViewedProducts({ domain, query = {}, fetcher = fetch, now = new Date() }) {
-    const range = getCurrentWeekRange(now);
+    const timeZone = await getDomainTimeZone(domain);
+    const range = (query.startDate || query.endDate || query.date)
+        ? parseDateRange(query, now, timeZone)
+        : getCurrentWeekRange(now, timeZone);
     const previousRange = getPreviousRange(range);
     const limit = parseViewedProductsLimit(query.limit);
     const cacheKey = [domain, formatDate(range.start), formatDate(range.end), limit].join(':');
@@ -202,8 +209,8 @@ async function getTopViewedProducts({ domain, query = {}, fetcher = fetch, now =
         }));
         const result = {
             available: true,
-            range: toRangeResponse(range),
-            previousRange: toRangeResponse(previousRange),
+                range: toRangeResponse(range, timeZone),
+                previousRange: toRangeResponse(previousRange, timeZone),
             products: await enrichViewedProducts(domain, topProducts, fetcher),
         };
         topViewedProductsCache.set(cacheKey, { createdAt: Date.now(), value: result });
@@ -211,8 +218,8 @@ async function getTopViewedProducts({ domain, query = {}, fetcher = fetch, now =
     } catch (error) {
         return {
             available: false,
-            range: toRangeResponse(range),
-            previousRange: toRangeResponse(previousRange),
+            range: toRangeResponse(range, timeZone),
+            previousRange: toRangeResponse(previousRange, timeZone),
             products: [],
             reason: `No se pudo consultar Google Analytics: ${error.message}`,
         };
@@ -251,20 +258,20 @@ function getViewedProductTitle(catalogTitle, analyticsTitle, slug) {
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-async function getConfirmedOrdersFromDatabase(domain, range) {
+async function getConfirmedOrdersFromDatabase(domain, range, timeZone) {
     if (mongoose.connection.readyState !== 1) {
         throw createHttpError(503, 'La conexión principal a MongoDB no está disponible.');
     }
 
     const collection = mongoose.connection.collection('orders');
-    const endExclusive = new Date(range.end);
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    const startInclusive = dateKeyToInstant(formatDate(range.start), timeZone);
+    const endExclusive = dateKeyToInstant(formatDate(addDays(range.end, 1)), timeZone);
 
     try {
         return await collection.find({
             domain,
             'paymentStatus.typeStatus': { $in: [...PAID_STATUSES] },
-            createdAt: { $gte: range.start, $lt: endExclusive },
+            createdAt: { $gte: startInclusive, $lt: endExclusive },
         }, {
             projection: {
                 clientInfo: 1,
@@ -405,9 +412,9 @@ function buildProductDetail(products) {
     return `${labels.join(', ')}${remaining ? ` + ${remaining} más` : ''}`;
 }
 
-function parseDateRange(query, now) {
+function parseDateRange(query, now, timeZone = DEFAULT_TIME_ZONE) {
     const date = query.date ? parseDate(query.date, 'date') : null;
-    const start = date || (query.startDate ? parseDate(query.startDate, 'startDate') : startOfDayInLima(now));
+    const start = date || (query.startDate ? parseDate(query.startDate, 'startDate') : startOfDayInTimeZone(now, timeZone));
     const end = date || (query.endDate ? parseDate(query.endDate, 'endDate') : start);
 
     if (end < start) {
@@ -438,15 +445,8 @@ function parseDate(value, field) {
     return date;
 }
 
-function startOfDayInLima(date) {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: TIME_ZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(date);
-    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-    return new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
+function startOfDayInTimeZone(date, timeZone) {
+    return parseDate(getDateKeyInTimeZone(date, timeZone), 'date');
 }
 
 function getPreviousRange({ start, end }) {
@@ -458,10 +458,10 @@ function getPreviousRange({ start, end }) {
     return { start: previousStart, end: previousEnd };
 }
 
-function parseTopCustomersRange(query, now) {
-    if (query.date || query.startDate || query.endDate) return parseDateRange(query, now);
+function parseTopCustomersRange(query, now, timeZone = DEFAULT_TIME_ZONE) {
+    if (query.date || query.startDate || query.endDate) return parseDateRange(query, now, timeZone);
 
-    const end = startOfDayInLima(now);
+    const end = startOfDayInTimeZone(now, timeZone);
     const start = new Date(end);
     start.setUTCDate(start.getUTCDate() - 29);
     return { start, end };
@@ -476,19 +476,19 @@ function parseViewedProductsLimit(value) {
     return limit;
 }
 
-function getCurrentWeekRange(now) {
-    const end = startOfDayInLima(now);
+function getCurrentWeekRange(now, timeZone = DEFAULT_TIME_ZONE) {
+    const end = startOfDayInTimeZone(now, timeZone);
     const start = new Date(end);
     const daysSinceMonday = (start.getUTCDay() + 6) % 7;
     start.setUTCDate(start.getUTCDate() - daysSinceMonday);
     return { start, end };
 }
 
-function toRangeResponse(range) {
+function toRangeResponse(range, timeZone = DEFAULT_TIME_ZONE) {
     return {
         startDate: formatDate(range.start),
         endDate: formatDate(range.end),
-        timezone: TIME_ZONE,
+        timezone: timeZone,
     };
 }
 
@@ -543,6 +543,12 @@ function percentageChange(current, previous) {
 
 function formatDate(date) {
     return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setUTCDate(result.getUTCDate() + days);
+    return result;
 }
 
 function createHttpError(statusCode, message) {
