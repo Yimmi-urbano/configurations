@@ -5,6 +5,45 @@ const { getDashboardSummary, getTopCustomers, getTopViewedProducts } = require('
 
 const ConfigModel = mongoose.model('Config', ConfigDataSchema, 'configuration'); // Usar una sola colección
 
+const DEFAULT_TIME_ZONE = 'America/Lima';
+
+function isValidTimeZone(timeZone) {
+    if (typeof timeZone !== 'string' || !timeZone.trim()) return false;
+    try {
+        new Intl.DateTimeFormat('en-US', { timeZone }).format();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+exports.getTimeZone = async (req, res) => {
+    try {
+        const config = await ConfigModel.findOne({ domain: req.domain }, 'timeZone').lean();
+        const timeZone = isValidTimeZone(config?.timeZone) ? config.timeZone : DEFAULT_TIME_ZONE;
+        res.status(200).json({ status: true, data: { domain: req.domain, timeZone } });
+    } catch (error) {
+        res.status(500).json({ status: false, message: error.message || 'No se pudo obtener la zona horaria.' });
+    }
+};
+
+exports.updateTimeZone = async (req, res) => {
+    try {
+        const { timeZone } = req.body || {};
+        if (!isValidTimeZone(timeZone)) {
+            return res.status(400).json({ status: false, message: 'Elige una zona horaria IANA válida.' });
+        }
+        await ConfigModel.findOneAndUpdate(
+            { domain: req.domain },
+            { $set: { timeZone: timeZone.trim() } },
+            { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
+        res.status(200).json({ status: true, data: { domain: req.domain, timeZone: timeZone.trim() } });
+    } catch (error) {
+        res.status(500).json({ status: false, message: error.message || 'No se pudo guardar la zona horaria.' });
+    }
+};
+
 exports.getDashboardSummary = async (req, res) => {
     try {
         const summary = await getDashboardSummary({
